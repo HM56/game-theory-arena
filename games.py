@@ -48,24 +48,70 @@ Goal: Maximize your total score over multiple rounds."""
         self.state = {"rounds_played": 0}
 
     def get_state_description(self, agent_id: str = None) -> str:
+        """Clear state description for Prisoner's Dilemma"""
         current_round = self.round_number + 1
+        is_final = current_round == self.max_rounds
 
-        desc = f"Round {current_round}/{self.max_rounds}\n"
-        desc += f"Rounds remaining: {self.max_rounds - current_round}\n"
-        desc += f"Your score: {self.scores.get(agent_id, 0)}\n"
+        desc = f"{'='*40}\n"
+        desc += f"PRISONER'S DILEMMA - Round {current_round}/{self.max_rounds}{' [FINAL]' if is_final else ''}\n"
+        desc += f"{'='*40}\n\n"
 
-        # Show opponent's score
+        # Your score
+        desc += f"YOUR SCORE: {self.scores.get(agent_id, 0)} points\n"
+
+        # Opponent's score
         for other_id in self.scores:
             if other_id != agent_id:
-                desc += f"Opponent ({other_id}) score: {self.scores[other_id]}\n"
+                opp_score = self.scores[other_id]
+                diff = self.scores.get(agent_id, 0) - opp_score
+                diff_str = f" ({diff:+d})" if diff != 0 else ""
+                desc += f"OPPONENT ({other_id}): {opp_score} points{diff_str}\n"
 
+        # Show history
         if self.round_number > 0:
-            desc += "\nLast round actions:\n"
-            for event in self.history[-2:]:
+            desc += "\nRECENT HISTORY:\n"
+            for event in self.history[-4:]:
                 if event.message:
                     desc += f"  {event.message}\n"
 
+        # Payoff reminder
+        desc += "\nPAYOFFS (You, Opponent):\n"
+        desc += "  Both Cooperate: +3, +3\n"
+        desc += "  You Cooperate, Opponent Defects: +0, +5\n"
+        desc += "  You Defect, Opponent Cooperates: +5, +0\n"
+        desc += "  Both Defect: +1, +1\n"
+
+        if is_final:
+            desc += "\n⚠️  FINAL ROUND - No more cooperation!\n"
+
         return desc
+
+    def get_system_prompt(self) -> str:
+        """Get system prompt for Prisoner's Dilemma agents"""
+        return """You are a rational agent playing the Prisoner's Dilemma.
+
+OBJECTIVE: Maximize your total score over multiple rounds.
+
+GAME MECHANICS:
+- Each round, you and your opponent simultaneously choose: COOPERATE or DEFECT
+- Payoffs per round:
+  • Both Cooperate: +3 points each
+  • You Cooperate, Opponent Defects: +0 for you, +5 for opponent
+  • You Defect, Opponent Cooperates: +5 for you, +0 for opponent
+  • Both Defect: +1 point each
+
+STRATEGIC CONSIDERATIONS:
+- The game is repeated - your opponent will remember your past actions
+- Defection dominates in a single round, but cooperation can be better long-term
+- Consider tit-for-tat strategies, forgiveness, and reputation
+
+OUTPUT FORMAT:
+<reasoning>
+Analyze the situation, consider opponent patterns, weigh risks
+</reasoning>
+<action>
+cooperate or defect
+</action>"""
 
     def validate_action(self, action: str) -> bool:
         return action.lower().strip() in ["cooperate", "defect", "coop", "def"]
@@ -135,11 +181,12 @@ class PublicGoodsGame(BaseGame):
     """
 
     def __init__(self, rules: str = ""):
-        super().__init__(rules or self._default_rules())
+        # Set these BEFORE calling super().__init__() which calls _default_rules()
         self.multiplier = 1.8
         self.endowment = 10
         self.max_rounds = 10
         self.scores = {}
+        super().__init__(rules or self._default_rules())
 
     def _default_rules(self):
         return """Public Goods Game:
@@ -158,16 +205,66 @@ Goal: Maximize your total score.""".format(
         self.state = {"rounds_played": 0}
 
     def get_state_description(self, agent_id: str = None) -> str:
-        desc = f"Round {self.round_number + 1}/{self.max_rounds}\n"
-        desc += f"Your current score: {self.scores.get(agent_id, 0)}\n"
-        desc += f"You have {self.endowment} points to contribute (0-{self.endowment})\n"
+        """Clear state description for Public Goods Game"""
+        current_round = self.round_number + 1
+        is_final = current_round == self.max_rounds
 
+        desc = f"{'='*40}\n"
+        desc += f"PUBLIC GOODS GAME - Round {current_round}/{self.max_rounds}{' [FINAL]' if is_final else ''}\n"
+        desc += f"{'='*40}\n\n"
+
+        # Current score
+        desc = f"YOUR SCORE: {self.scores.get(agent_id, 0)} points\n"
+
+        # All player scores
+        desc += "\nALL SCORES:\n"
+        sorted_scores = sorted(self.scores.items(), key=lambda x: x[1], reverse=True)
+        for aid, score in sorted_scores:
+            marker = " ← YOU" if aid == agent_id else ""
+            desc += f"  {aid}: {score}{marker}\n"
+
+        # Game mechanics reminder
+        desc += f"\nTHIS ROUND:\n"
+        desc += f"  You have {self.endowment} points to contribute\n"
+        desc += f"  Contribution range: 0 to {self.endowment}\n"
+        desc += f"  Multiplier: {self.multiplier}x\n"
+        desc += f"  Players: {len(self.agents)}\n"
+
+        # Last round results
         if self.round_number > 0:
-            desc += "\nLast round summary:\n"
-            # Show last round's contributions
-            pass
+            desc += "\nLAST ROUND:\n"
+            for event in self.history[-4:]:
+                if event.message:
+                    desc += f"  {event.message}\n"
 
         return desc
+
+    def get_system_prompt(self) -> str:
+        """Get system prompt for Public Goods Game agents"""
+        return f"""You are a rational agent playing the Public Goods Game.
+
+OBJECTIVE: Maximize your total score over multiple rounds.
+
+GAME MECHANICS:
+- Each round, you have {self.endowment} points to contribute to a public pot
+- You choose how much to contribute (0 to {self.endowment})
+- All contributions are pooled and multiplied by {self.multiplier}x
+- The multiplied pot is divided EQUALLY among all players
+- You keep (endowment - contribution) + your share of the pot
+
+STRATEGIC CONSIDERATIONS:
+- Full contribution by everyone maximizes total group welfare
+- But individual incentive is to free-ride (contribute 0)
+- Repeated rounds allow for building trust/reciprocity
+- Consider conditional cooperation strategies
+
+OUTPUT FORMAT:
+<reasoning>
+Analyze contributions, consider others' behavior, decide optimal contribution
+</reasoning>
+<action>
+a number from 0 to {self.endowment}
+</action>"""
 
     def validate_action(self, action: str) -> bool:
         try:
@@ -282,7 +379,8 @@ Return ONLY valid JSON - no extra text."""
         try:
             response = await self.llm.get_completion(
                 prompt=prompt,
-                model="openai/gpt-oss-120b",  # Use best model for analysis
+                model="openai/gpt-oss-120b",
+                temperature=0.1,  # Low temperature for consistent analysis
                 json_mode=True
             )
             import json
@@ -291,17 +389,23 @@ Return ONLY valid JSON - no extra text."""
             self.action_description = result.get("action_description", "your action")
             return result
         except Exception as e:
-            # Fallback
+            # Enhanced fallback
             return {
                 "game_type": "custom",
                 "min_players": 2,
                 "max_players": 8,
                 "recommended_players": 2,
-                "typical_rounds": 5,
-                "action_description": "your move/action",
+                "typical_rounds": 10,
+                "action_format": "free_text",
+                "action_description": "your move or action",
                 "example_action": "your choice",
-                "scoring_method": "determined by rules",
-                "complexity": "medium"
+                "valid_actions": None,
+                "scoring_method": "as specified in rules",
+                "win_condition": "highest score",
+                "strategy_hint": "play to maximize your score",
+                "complexity": "medium",
+                "player_interactions": "simultaneous",
+                "key_mechanics": ["custom_rules"]
             }
 
     def setup(self, agents: List, max_rounds: int = None):
@@ -314,67 +418,94 @@ Return ONLY valid JSON - no extra text."""
         self.state["rounds_played"] = 0
 
     def get_state_description(self, agent_id: str = None) -> str:
+        """Generate clear, structured game state description"""
         current_round = self.round_number + 1
         is_final = current_round == self.max_rounds
 
-        desc = f"=== ROUND {current_round}/{self.max_rounds}{' [FINAL ROUND]' if is_final else ''} ===\n\n"
+        desc = f"{'='*50}\n"
+        desc += f"ROUND {current_round}/{self.max_rounds}{' [FINAL ROUND]' if is_final else ''}\n"
+        desc += f"{'='*50}\n\n"
 
-        desc += f"CURRENT STANDINGS:\n"
+        # Current standings with clear hierarchy
+        desc += "CURRENT STANDINGS:\n"
         sorted_scores = sorted(self.scores.items(), key=lambda x: x[1], reverse=True)
         for rank, (aid, score) in enumerate(sorted_scores, 1):
-            leader = "[LEADER] " if rank == 1 else ""
-            desc += f"  {leader}{aid}: {score} points\n"
-            if aid == agent_id:
-                desc += f"    ^ YOU\n"
+            icon = "👑" if rank == 1 else "  "
+            you_marker = " ← YOU" if aid == agent_id else ""
+            desc += f"  {icon} {aid}: {score} points{you_marker}\n"
 
+        # Last round results if available
         if self.round_number > 0 and self.history:
-            desc += f"\nLAST ROUND RESULT:\n"
-            # Find last result event
+            desc += "\nLAST ROUND:\n"
+            # Get last few action events and the result
             for event in reversed(self.history[-5:]):
-                if event.event_type == "result":
-                    desc += f"  {event.message}\n"
+                if event.event_type == "action":
+                    desc += f"  • {event.message}\n"
+                elif event.event_type == "result":
+                    desc += f"  → {event.message}\n"
                     break
 
-        desc += f"\nRULES:\n"
-        # Show rules in a more readable way
+        # Rules summary (cleaned up)
+        desc += "\nGAME RULES:\n"
         rules_lines = self.rules.split('\n')
-        for line in rules_lines[:15]:  # First 15 lines
-            if line.strip():
+        for line in rules_lines[:20]:  # Show first 20 lines
+            line = line.strip()
+            if line and not line.startswith('#'):  # Skip empty lines and comments
                 desc += f"  {line}\n"
-        if len(rules_lines) > 15:
-            desc += f"  ... (rules continue)\n"
+        if len(rules_lines) > 20:
+            desc += "  ...\n"
 
         if is_final:
-            desc += f"\n[FINAL ROUND] - Make it count!\n"
+            desc += "\n⚠️  FINAL ROUND - Give it your all!\n"
 
         return desc
 
     def get_system_prompt(self) -> str:
-        """Generate dynamic system prompt based on rules - enhanced clarity"""
+        """Generate clear, structured system prompt with XML-style output format"""
         analysis = self.state.get("analysis", {})
         action_desc = analysis.get("action_description", "your action")
         example = analysis.get("example_action", "")
         strategy = analysis.get("strategy_hint", "")
+        valid_actions = analysis.get("valid_actions")
 
-        prompt = f"""You are a rational agent playing a game against opponents.
+        prompt = """You are a rational AI agent in a game theory competition.
 
-OBJECTIVE: Maximize your total score.
+PRIMARY OBJECTIVE: Maximize your total score by the end of the game.
 
-YOUR ACTION: {action_desc}
-{f'Example valid action: {example}' if example else ''}
+OUTPUT FORMAT (CRITICAL):
+You MUST structure your response using XML-style tags:
 
-{f'STRATEGY HINT: {strategy}' if strategy else ''}
+<reasoning>
+Your strategic analysis goes here. Consider:
+• Current game state and standings
+• Opponent behavior patterns
+• Risk vs reward of different actions
+• Long-term implications
+</reasoning>
 
-CRITICAL - How to respond:
-1. Think through the game state first
-2. Consider what opponents might do
-3. Make your decision strategically
-4. Output your action CLEARLY at the end in this exact format:
+<action>
+Your final action value ONLY - no explanation
+</action>"""
 
-   ACTION: [your action here]
+        # Add action-specific guidance
+        prompt += f"\n\nYOUR ACTION THIS TURN: {action_desc}"
+        if example:
+            prompt += f"\nExample: <action>{example}</action>"
+        if valid_actions:
+            prompt += f"\nValid choices: {', '.join(valid_actions)}"
 
-Remember: Your goal is to WIN by getting the highest score.
-Always end your response with "ACTION: [your choice]" on its own line."""
+        # Add strategic hint if available
+        if strategy:
+            prompt += f"\n\nSTRATEGIC GUIDANCE:\n{strategy}"
+
+        prompt += """
+
+REMEMBER:
+- The <action> tag must contain ONLY your action value
+- No explanations like "I choose" or "my action is"
+- Just the raw action value: "cooperate", "5", "rock", etc.
+
+Your goal is to WIN by achieving the highest score. Think strategically in the <reasoning> section, then output your action in the <action> section."""
 
         return prompt
 
@@ -382,9 +513,23 @@ Always end your response with "ACTION: [your choice]" on its own line."""
         return len(action.strip()) > 0
 
     async def extract_action(self, agent_id: str, raw_response: str) -> str:
-        """Use LLM to extract the actual action from agent's response - enhanced with Opus"""
+        """Extract the actual action from agent's response - improved with better prompts"""
 
-        prompt = f"""You are extracting a player's action from their response.
+        # First, try to extract from XML-style tags (new format)
+        import re
+
+        # Look for <action>content</action> tags first
+        tag_pattern = r'<action>(.*?)</action>'
+        tag_match = re.search(tag_pattern, raw_response, re.DOTALL | re.IGNORECASE)
+        if tag_match:
+            extracted = tag_match.group(1).strip()
+            # Clean up the extracted action
+            extracted = extracted.strip('\'"`.').strip()
+            if extracted and len(extracted) > 0 and len(extracted) < 100:
+                return extracted
+
+        # If no tags found, use LLM-based extraction with improved prompt
+        prompt = f"""You are an action extraction system. Your job is to extract ONLY the player's final action from their response.
 
 AGENT: {agent_id}
 
@@ -395,28 +540,22 @@ THEIR FULL RESPONSE:
 {raw_response}
 \"\"\"
 
-EXTRACTION RULES:
-1. Find the FINAL, CLEAR decision/action
-2. Look for patterns like "I choose X", "action: X", "decision: X", "→ X", "=> X"
-3. If it's a NUMBER game: extract digits only
-4. If it's a CHOICE game (cooperate/defect, rock/paper/scissors): extract the choice word
-5. Ignore all reasoning - ONLY extract the action itself
-6. If multiple decisions mentioned, take the LAST one (it's the final choice)
+EXTRACTION PROTOCOL:
+1. Find the FINAL, CLEAR decision/action - ignore all reasoning
+2. Look for the action at the end of the response (after analysis)
+3. Common patterns: "ACTION: X", "I choose X", "My decision: X", "→ X", "=> X"
+4. For NUMBER games: extract just the digits
+5. For CHOICE games (cooperate/defect, rock/paper/scissors): extract the choice word
 
-Examples:
-- "I think... therefore I choose to COOPERATE" → "COOPERATE"
-- "Action: 42" → "42"
-- "My decision is rock" → "rock"
-- "I will defect. Final answer." → "defect"
+IMPORTANT: Respond with ONLY the extracted action - no explanation, no quotes, just the raw action value.
 
-Extract the action now - respond with ONLY the action, nothing else:"""
+Extract now:"""
 
         try:
-            # Use Opus for best extraction accuracy
             response = await self.llm.get_completion(
                 prompt=prompt,
-                model="openai/gpt-oss-120b",  # Best model for extraction
-                temperature=0.05,  # Lower temperature for more consistent extraction
+                model="openai/gpt-oss-120b",
+                temperature=0.0,  # Zero temperature for consistent extraction
                 max_tokens=50
             )
             extracted = response.strip()
@@ -430,111 +569,90 @@ Extract the action now - respond with ONLY the action, nothing else:"""
                 extracted = extracted[1:-1].strip()
 
             # Validate extraction makes sense
-            if len(extracted) == 0 or len(extracted) > 100:
-                raise ValueError("Extraction failed - invalid length")
-
-            return extracted
+            if 0 < len(extracted) <= 100:
+                return extracted
 
         except Exception as e:
-            # Enhanced smart fallback with multiple strategies
-            import re
+            pass  # Fall through to regex extraction
 
-            # Strategy 1: Look for explicit decision markers with colons/arrow syntax
-            decision_patterns = [
-                r'(?:final decision|final choice|i choose|i will|i pick|my action|decision|action|choice|therefore)\s*[:→=]\s*["\']*([^"\n\'\.]+)["\']*\.?',
-                r'(?:final decision|final choice|i choose|i will|i pick|my action|decision|action|choice)\s+(?:to\s+)?["\']*([^"\n\'\.]+)["\']*\.?',
-                r'(?:therefore|so|i decide|i decided)\s*(?:,)?\s*(?:i\s+)?["\']*([^"\n\'\.]+)["\']*\.?'
-            ]
+        # Enhanced regex-based fallback
+        # Strategy 1: Look for explicit decision markers with colons/arrows
+        decision_patterns = [
+            r'(?:final decision|final choice|i choose|i will|i pick|my action|decision|action|choice|therefore)\s*[:→=]\s*["\']*?([^"\n\'\.]+?)["\']*\.?$',
+            r'(?:final decision|final choice|i choose|i will|i pick)\s+(?:to\s+)?["\']*?([^"\n\'\.]+?)["\']*\.?$',
+        ]
 
-            for pattern in decision_patterns:
-                matches = list(re.finditer(pattern, raw_response, re.IGNORECASE | re.MULTILINE))
-                if matches:
-                    # Take the last match (final decision)
-                    action = matches[-1].group(1).strip()
-                    if len(action) > 0 and len(action) < 50:
-                        # Normalize the action
-                        action = action.rstrip('\'".').strip()
-                        # Check if it's a well-known action
-                        known_actions = {
-                            'cooperate': 'cooperate',
-                            'coop': 'cooperate',
-                            'defect': 'defect',
-                            'def': 'defect',
-                            'rock': 'rock',
-                            'paper': 'paper',
-                            'scissors': 'scissors'
-                        }
-                        action_lower = action.lower()
-                        if action_lower in known_actions:
-                            return known_actions[action_lower]
-                        # If it's a number, return it
-                        if action.isdigit():
-                            return action
-                        return action.capitalize()
+        for pattern in decision_patterns:
+            matches = list(re.finditer(pattern, raw_response, re.IGNORECASE | re.MULTILINE))
+            if matches:
+                action = matches[-1].group(1).strip()
+                if 0 < len(action) < 50:
+                    action = action.rstrip('\'".').strip()
+                    # Normalize known actions
+                    known_actions = {
+                        'cooperate': 'cooperate', 'coop': 'cooperate',
+                        'defect': 'defect', 'def': 'defect',
+                        'rock': 'rock', 'paper': 'paper', 'scissors': 'scissors'
+                    }
+                    action_lower = action.lower()
+                    if action_lower in known_actions:
+                        return known_actions[action_lower]
+                    if action.isdigit():
+                        return action
+                    return action.capitalize()
 
-            # Strategy 2: Look for standalone numbers (for bid/number games)
-            numbers = re.findall(r'^\s*(\d+(?:\.\d+)?)\s*\.?\s*$', raw_response, re.MULTILINE)
-            if numbers:
-                return numbers[-1]  # Last standalone number is often the final choice
+        # Strategy 2: Look for standalone numbers
+        numbers = re.findall(r'^\s*(\d+(?:\.\d+)?)\s*\.?\s*$', raw_response, re.MULTILINE)
+        if numbers:
+            return numbers[-1]
 
-            # Strategy 3: Look for the last line with a clear decision word
-            lines = raw_response.strip().split('\n')
-            action_words = {'cooperate', 'coop', 'defect', 'def', 'rock', 'paper', 'scissors', 'bid', 'pass'}
+        # Strategy 3: Look for action keywords in the last few lines
+        lines = raw_response.strip().split('\n')
+        action_words = {'cooperate', 'coop', 'defect', 'def', 'rock', 'paper', 'scissors', 'bid', 'pass'}
 
-            for line in reversed(lines):
-                line_clean = line.strip().rstrip('\'".').strip()
-                line_lower = line_clean.lower()
+        for line in reversed(lines[-5:]):  # Check last 5 lines only
+            line_clean = line.strip().rstrip('\'".').strip()
+            line_lower = line_clean.lower()
 
-                # Check if line contains a known action word
-                words = line_lower.split()
-                for word in reversed(words):  # Check last word first
-                    word_clean = word.rstrip('\'".,').strip()
-                    if word_clean in action_words:
-                        # Map short forms to full
-                        if word_clean in ['coop', 'cooperate']:
-                            return 'cooperate'
-                        elif word_clean in ['def', 'defect']:
-                            return 'defect'
-                        return word_clean
+            # Check for action words
+            for word in reversed(line_lower.split()):
+                word_clean = word.rstrip('\'".,').strip()
+                if word_clean in action_words:
+                    if word_clean in ['coop', 'cooperate']:
+                        return 'cooperate'
+                    elif word_clean in ['def', 'defect']:
+                        return 'defect'
+                    return word_clean
 
-                # If line is short and looks like a decision
-                if len(line_clean) > 0 and len(line_clean) < 60:
-                    # Check for common decision patterns
-                    if any(kw in line_lower for kw in ['i choose', 'i will', 'action:', '→', '=>']):
-                        # Extract the action part
-                        for kw in ['i choose', 'i will', 'i pick', 'action:', 'decision:', '→', '=>', ':']:
-                            if kw in line_lower:
-                                parts = line_lower.split(kw, 1)
-                                if len(parts) > 1:
-                                    action = parts[1].strip().strip('\'".,')
-                                    if len(action) > 0 and len(action) < 50:
-                                        # Normalize
-                                        if action in ['coop', 'cooperate']:
-                                            return 'Cooperate'
-                                        elif action in ['def', 'defect']:
-                                            return 'Defect'
-                                        return action.capitalize()
+            # Check for decision patterns
+            if any(kw in line_lower for kw in ['i choose', 'i will', 'action:', '→', '=>']):
+                for kw in ['action:', 'decision:', '→', '=>']:
+                    if kw in line_lower:
+                        parts = line_lower.split(kw, 1)
+                        if len(parts) > 1:
+                            action = parts[1].strip().strip('\'".,')
+                            if 0 < len(action) < 50:
+                                return action.capitalize()
 
-            # Strategy 4: Last resort - get the last meaningful line
-            for line in reversed(lines):
-                line_clean = line.strip().strip('*-=').strip()
-                # Remove common prefixes
-                for prefix in ['i choose', 'i will', 'i pick', 'action:', 'decision:', 'final:', 'therefore', 'so']:
-                    if line_clean.lower().startswith(prefix):
-                        line_clean = line_clean[len(prefix):].strip(',\'".')
+        # Strategy 4: Get the last meaningful short line
+        for line in reversed(lines):
+            line_clean = line.strip().strip('*-=#').strip()
+            # Remove common prefixes
+            for prefix in ['i choose', 'i will', 'i pick', 'action:', 'decision:', 'final:', 'therefore', 'so']:
+                if line_clean.lower().startswith(prefix):
+                    line_clean = line_clean[len(prefix):].strip(',\'".')
 
-                if 2 < len(line_clean) < 50:
-                    # Check if it's not just reasoning
-                    reasoning_words = ['because', 'since', 'due to', 'considering', 'thinking', 'strategy']
-                    if not any(rw in line_clean.lower() for rw in reasoning_words):
-                        return line_clean.capitalize()
+            if 2 < len(line_clean) < 50:
+                reasoning_words = ['because', 'since', 'due to', 'considering', 'thinking', 'strategy', 'analyze']
+                if not any(rw in line_clean.lower() for rw in reasoning_words):
+                    return line_clean.capitalize()
 
-            # Final fallback - return first 50 chars of last non-empty line
-            for line in reversed(lines):
-                if line.strip():
-                    return line.strip()[:50].capitalize()
+        # Final fallback
+        for line in reversed(lines):
+            if line.strip():
+                return line.strip()[:50].capitalize()
 
-            return raw_response.strip()[:50]
+        return raw_response.strip()[:50]
 
     async def process_actions(self, actions: List[AgentAction]) -> List[GameEvent]:
         events = []
@@ -558,133 +676,125 @@ Extract the action now - respond with ONLY the action, nothing else:"""
                 }
             ))
 
-        # Use LLM to adjudicate results
+        # Use improved LLM adjudication
         actions_summary = "\n".join([
             f"- {aid}: {extracted_actions[aid]}" for aid in extracted_actions
         ])
 
-        # Get previous scores for display
         previous_scores = self.scores.copy()
 
-        adjudication_prompt = f"""You are the game adjudicator. Calculate scores accurately.
+        # Improved adjudication prompt - more structured and unbiased
+        adjudication_prompt = f"""You are an impartial game adjudicator. Your role is to apply game rules mechanically and fairly.
 
 ====================
-GAME RULES:
+GAME RULES (Apply These Exactly):
 ====================
 {self.rules}
 
 ====================
-ACTIONS THIS ROUND:
+PLAYER ACTIONS THIS ROUND:
 ====================
 {actions_summary}
 
 ====================
-CURRENT STANDINGS (before this round):
+CURRENT SCORES (Before This Round):
 ====================
-{chr(10).join([f'{aid}: {score} points' for aid, score in self.scores.items()])}
+{chr(10).join([f'Player {aid}: {score} points' for aid, score in self.scores.items()])}
 
 ====================
-YOUR TASK:
+ADJUDICATION PROTOCOL:
 ====================
-Calculate what happens this round. Then respond with JSON:
+
+Step 1: Interpret the rules literally - do not add or infer anything
+Step 2: Apply the rules to the actions taken
+Step 3: Calculate score changes for each player
+Step 4: Verify calculations are mathematically correct
+
+CRITICAL CONSTRAINTS:
+- Apply rules EXACTLY as written - no interpretation bias
+- Treat all players equally - no favoritism
+- Scores can be negative if rules permit
+- Use the EXACT player IDs listed above
+
+====================
+REQUIRED OUTPUT FORMAT:
+====================
+Respond ONLY with valid JSON in this exact format:
 
 {{
-    "result_message": "Clear explanation: what happened, who gained/lost what, and why",
-    "score_changes": {{"exact_agent_id_from_above": points_change (can be negative or positive)}},
-    "new_scores": {{"exact_agent_id_from_above": new_total_score}},
-    "game_over": false
+    "result_summary": "Brief factual statement of what occurred",
+    "score_adjustments": {{
+        "player_id_1": change_value,
+        "player_id_2": change_value
+    }},
+    "updated_scores": {{
+        "player_id_1": new_total,
+        "player_id_2": new_total
+    }},
+    "calculations": "Brief explanation of how you calculated each score change"
 }}
 
-====================
-CRITICAL RULES:
-====================
-1. Use EXACT agent IDs from the "ACTIONS THIS ROUND" section above
-2. Calculate changes carefully - scores can go negative
-3. If rules mention ties/same choices, handle them correctly
-4. Be FAIR and follow the rules exactly
-5. Make result_message VERY clear for players to understand
-6. new_scores should be previous_score + score_change for each agent
+EXAMPLE:
+If Player A had 10 points, gains 3, and Player B had 8 points, loses 1:
+{{
+    "result_summary": "Player A and B both chose Cooperate. Each receives 3 points.",
+    "score_adjustments": {{"player_id": 3, "player_id_2": 3}},
+    "updated_scores": {{"player_id": 13, "player_id_2": 11}},
+    "calculations": "From rules: Both cooperate = +3 each. 10+3=13, 8+3=11"
+}}
 
-Think through the scoring step by step before outputting JSON."""
+Apply the rules now:"""
 
         try:
+            # Use lower temperature for more consistent, unbiased adjudication
             response = await self.llm.get_completion(
                 prompt=adjudication_prompt,
-                model="openai/gpt-oss-120b",  # Best model for adjudication
+                model="openai/gpt-oss-120b",
+                temperature=0.1,  # Lower temp for more deterministic results
                 json_mode=True
             )
 
             import json
             result = json.loads(response)
 
-            # Apply score changes with better error handling
-            score_updates = result.get("score_changes", {})
-            new_scores = result.get("new_scores", {})
+            # Apply score updates with careful matching
+            score_adjustments = result.get("score_adjustments", {})
+            updated_scores = result.get("updated_scores", {})
 
-            # First try to use new_scores if provided (more reliable)
-            if new_scores:
-                for agent_id, new_score in new_scores.items():
-                    # Try to match agent ID flexibly
-                    matched_id = None
-                    for aid in self.scores.keys():
-                        if aid.lower() in agent_id.lower() or agent_id.lower() in aid.lower():
-                            matched_id = aid
-                            break
-
+            # Prefer updated_scores if provided (more reliable)
+            if updated_scores:
+                for agent_id, new_score in updated_scores.items():
+                    matched_id = self._match_agent_id(agent_id)
                     if matched_id:
                         try:
                             self.scores[matched_id] = float(new_score)
-                        except:
+                        except (ValueError, TypeError):
                             pass
 
-            # Then apply any score_changes as backup or for agents not in new_scores
-            for agent_id, change in score_updates.items():
-                # Skip if we already updated this agent via new_scores
-                already_updated = False
-                for aid in self.scores.keys():
-                    if aid.lower() in agent_id.lower() or agent_id.lower() in aid.lower():
-                        if new_scores and any(aid.lower() in nid.lower() for nid in new_scores.keys()):
-                            already_updated = True
-                            break
-
-                if already_updated:
-                    continue
-
-                # Try to match agent ID flexibly
-                matched_id = None
-                for aid in self.scores.keys():
-                    if aid.lower() in agent_id.lower() or agent_id.lower() in aid.lower():
-                        matched_id = aid
-                        break
-
-                if matched_id:
+            # Apply any adjustments not covered by updated_scores
+            for agent_id, change in score_adjustments.items():
+                matched_id = self._match_agent_id(agent_id)
+                if matched_id and matched_id not in updated_scores:
                     try:
                         self.scores[matched_id] += float(change)
-                    except:
+                    except (ValueError, TypeError):
                         pass
-                else:
-                    # Try using the key directly
-                    if agent_id in self.scores:
-                        try:
-                            self.scores[agent_id] += float(change)
-                        except:
-                            pass
 
-            # Generate result message with score changes for clarity
-            result_msg = result.get("result_message", "Scores updated")
+            # Build result message
+            result_msg = result.get("result_summary", "Round processed")
 
-            # Add score change details to result message
+            # Add score change details
             changes_detail = []
             for aid in self.scores.keys():
                 if aid in previous_scores:
                     old = previous_scores[aid]
                     new = self.scores[aid]
                     diff = new - old
-                    if diff != 0:
-                        changes_detail.append(f"{aid}: {old} → {new} ({diff:+.0f})")
+                    symbol = "±" if diff == 0 else ("+" if diff > 0 else "")
+                    changes_detail.append(f"{aid}: {old}→{new} ({symbol}{diff:.0f})")
 
             if changes_detail:
-                result_msg += f" Score changes: {', '.join(changes_detail)}."
+                result_msg += f" | Changes: {', '.join(changes_detail)}"
 
             events.append(GameEvent(
                 event_type="result",
@@ -693,33 +803,93 @@ Think through the scoring step by step before outputting JSON."""
                 data={
                     "scores": self.scores.copy(),
                     "extracted_actions": extracted_actions,
-                    "previous_scores": previous_scores
+                    "previous_scores": previous_scores,
+                    "calculations": result.get("calculations", "")
                 }
             ))
 
         except Exception as e:
-            # Fallback: simple adjudication
-            error_msg = f"Adjudication error: {str(e)}. Using fallback scoring."
+            # Enhanced fallback with better error handling
+            import json
 
-            # Simple fallback: everyone gets 1 point
-            for aid in self.scores.keys():
-                self.scores[aid] += 1
+            # Try a second adjudication attempt with simpler prompt
+            fallback_prompt = f"""Apply these rules:
 
-            events.append(GameEvent(
-                event_type="result",
-                timestamp=timestamp,
-                message=f"Rules applied. {', '.join([f'{aid}: {extracted_actions[aid]}' for aid in extracted_actions])}",
-                data={
-                    "scores": self.scores.copy(),
-                    "extracted_actions": extracted_actions,
-                    "error": error_msg
-                }
-            ))
+{self.rules}
+
+Actions: {actions_summary}
+Current scores: {self.scores}
+
+Give me JSON with score changes only:
+{{"player_id": change_number}}"""
+
+            try:
+                fallback_response = await self.llm.get_completion(
+                    prompt=fallback_prompt,
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.0,
+                    json_mode=True
+                )
+                fallback_result = json.loads(fallback_response)
+
+                for agent_id, change in fallback_result.items():
+                    matched_id = self._match_agent_id(agent_id)
+                    if matched_id:
+                        try:
+                            self.scores[matched_id] += float(change)
+                        except (ValueError, TypeError):
+                            pass
+
+                events.append(GameEvent(
+                    event_type="result",
+                    timestamp=timestamp,
+                    message=f"Round adjudicated. Actions: {', '.join([f'{aid}: {extracted_actions[aid]}' for aid in extracted_actions])}",
+                    data={"scores": self.scores.copy(), "extracted_actions": extracted_actions}
+                ))
+
+            except:
+                # Ultimate fallback - no score changes, just log actions
+                events.append(GameEvent(
+                    event_type="result",
+                    timestamp=timestamp,
+                    message=f"Round processed (scoring unavailable). Actions: {', '.join([f'{aid}: {extracted_actions[aid]}' for aid in extracted_actions])}",
+                    data={
+                        "scores": self.scores.copy(),
+                        "extracted_actions": extracted_actions,
+                        "error": str(e)
+                    }
+                ))
 
         self.history.extend(events)
         self.round_number += 1
 
         return events
+
+    def _match_agent_id(self, query_id: str) -> str:
+        """Flexibly match agent IDs, handling case and partial matches"""
+        query_lower = query_id.lower().strip()
+
+        # Direct match
+        if query_id in self.scores:
+            return query_id
+
+        # Case-insensitive match
+        for aid in self.scores:
+            if aid.lower() == query_lower:
+                return aid
+
+        # Partial match (query contains actual ID or vice versa)
+        for aid in self.scores:
+            aid_lower = aid.lower()
+            if query_lower in aid_lower or aid_lower in query_lower:
+                return aid
+
+        # Extract ID from patterns like "player llama-3.3-70b-1"
+        for aid in self.scores:
+            if aid.lower() in query_lower:
+                return aid
+
+        return None
 
     def is_game_over(self) -> bool:
         if self.history and self.history[-1].data.get("game_over"):

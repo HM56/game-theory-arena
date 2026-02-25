@@ -38,19 +38,50 @@ class LLMAgent(BaseAgent):
         self.personality = personality
 
     def _build_system_prompt(self, personality: str) -> str:
-        base = """You are a rational agent playing a game theory scenario.
-Your goal is to maximize your score/payoff.
+        base = """You are a rational agent in a game theory competition.
 
-When deciding on an action:
-1. Analyze the current game state
-2. Consider what other players might do
-3. Think about long-term vs short-term gains
-4. Choose the action that best advances your interests
+PRIMARY OBJECTIVE: Maximize your total score by the end of the game.
 
-Always respond with your action clearly."""
+CRITICAL OUTPUT FORMAT:
+You MUST separate your thinking from your final action using XML-style tags:
+
+<reasoning>
+Your strategic analysis goes here.
+- Analyze current game state
+- Consider opponent behavior patterns
+- Weigh short-term vs long-term outcomes
+</reasoning>
+
+<action>
+Your final action choice goes here - JUST the action value
+</action>
+
+EXAMPLES:
+If choosing to cooperate:
+<reasoning>
+Given the repeated nature and my opponent's history of cooperation, I'll cooperate to build trust.
+</reasoning>
+<action>
+cooperate
+</action>
+
+If bidding 15:
+<reasoning>
+With 3 rounds left and being behind, I need an aggressive bid. 15 is optimal.
+</reasoning>
+<action>
+15
+</action>
+
+IMPORTANT: The <action> tag must contain ONLY your action - no explanations, no "I choose", just the raw action value."""
 
         if personality:
-            return f"{base}\n\nYour personality/strategy: {personality}"
+            return f"""{base}
+
+ADDITIONAL STRATEGIC CONTEXT:
+{personality}
+
+Remember: Your personality guides your strategy, but your action must still be output in the <action> tags."""
         return base
 
     async def decide_action(
@@ -64,27 +95,50 @@ Always respond with your action clearly."""
         # Use game-provided system prompt if available, otherwise use default
         effective_system_prompt = system_prompt_override or self.system_prompt
 
-        prompt = f"""Current Game State:
-{game_state}
+        # Build the prompt with clear structure
+        prompt = f"""=== CURRENT GAME STATE ===
+{game_state}"""
 
-"""
-
+        # Add action guidance based on format
         if action_format == "structured" and available_actions:
-            prompt += f"""Available actions: {', '.join(available_actions)}
+            prompt += f"""
 
-IMPORTANT: Show your reasoning first, then end with a clear decision in the format:
-ACTION: [your choice]"""
+=== YOUR OPTIONS ===
+{', '.join(available_actions)}
+
+=== YOUR TASK ===
+Analyze and choose. Use this format:
+<reasoning>
+Your strategic analysis
+</reasoning>
+<action>
+your_choice
+</action>"""
         elif action_format == "multiple_choice" and available_actions:
-            prompt += f"""Choose one of: {', '.join(available_actions)}
+            prompt += f"""
 
-IMPORTANT: Show your reasoning first, then end with your clear choice in the format:
-ACTION: [your choice]"""
+=== YOUR OPTIONS ===
+Choose one: {', '.join(available_actions)}
+
+=== YOUR TASK ===
+Analyze and choose. Use this format:
+<reasoning>
+Your strategic analysis
+</reasoning>
+<action>
+your_choice
+</action>"""
         else:
-            prompt += """IMPORTANT: Think through your strategy first, then clearly state your final decision at the end using this exact format:
+            prompt += """
 
-ACTION: [your choice]
-
-Make sure to put "ACTION:" followed by your choice on its own line at the very end."""
+=== YOUR TASK ===
+Analyze the situation and make your decision. Use the format:
+<reasoning>
+Your strategic analysis
+</reasoning>
+<action>
+your_action_value
+</action>"""
 
         try:
             response = await self.llm.get_completion(
@@ -94,14 +148,15 @@ Make sure to put "ACTION:" followed by your choice on its own line at the very e
                 temperature=self.temperature
             )
 
-            # For CustomGame, don't extract here - let the game do it
-            # Return raw response and let the game's extract_action handle it
-            # Just pass through the raw response as the action for now
+            # Extract reasoning and action from the response
+            reasoning = self._extract_reasoning(response)
+            action = self._extract_action_from_tags(response)
+
             return AgentAction(
                 agent_id=self.agent_id,
-                action=response[:200],  # Truncated for display
-                reasoning=response[:500],  # First 500 chars as reasoning
-                raw_response=response  # Full response for game to extract from
+                action=action or response[:100],  # Fallback to truncated response
+                reasoning=reasoning or response[:500],
+                raw_response=response
             )
 
         except Exception as e:
@@ -113,6 +168,26 @@ Make sure to put "ACTION:" followed by your choice on its own line at the very e
                 reasoning=f"Error: {str(e)}",
                 raw_response=""
             )
+
+    def _extract_reasoning(self, response: str) -> str:
+        """Extract content from <reasoning> tags"""
+        import re
+        pattern = r'<reasoning>(.*?)</reasoning>'
+        match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        # If no tags, return empty - the game will handle it
+        return ""
+
+    def _extract_action_from_tags(self, response: str) -> str:
+        """Extract content from <action> tags"""
+        import re
+        pattern = r'<action>(.*?)</action>'
+        match = re.search(pattern, response, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        # If no tags found, return empty - let the game's extraction handle it
+        return ""
 
     def _extract_action(self, response: str, available_actions: List[str], action_format: str) -> str:
         """Extract clean action from LLM response - handles thinking + final decision"""
