@@ -6,15 +6,27 @@ import os
 import asyncio
 import json
 import time
+import logging
 from queue import Queue
 from threading import Thread
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 
 from game_engine import GameStatus
 from llm_providers import LLMOrchestrator, LLMModel
 from agents import AgentFactory
 from games import CustomGame
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('game_arena.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 app = Flask(__name__)
@@ -170,6 +182,41 @@ def get_state():
         "game": game.to_dict() if game else None,
         "events": [e.to_dict() for e in game_state.get("events", [])]
     })
+
+
+@app.route('/api/debug/logs', methods=['GET'])
+def get_debug_logs():
+    """Get recent log entries for debugging"""
+    try:
+        log_lines = []
+        log_file = 'llm_debug.log'
+
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                # Get last 100 lines
+                lines = f.readlines()
+                log_lines = lines[-100:] if len(lines) > 100 else lines
+
+        return jsonify({
+            "logs": "".join(log_lines),
+            "log_file": log_file,
+            "exists": os.path.exists(log_file)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "logs": f"Error reading logs: {str(e)}"}), 500
+
+
+@app.route('/api/debug/clear-logs', methods=['POST'])
+def clear_debug_logs():
+    """Clear the debug log file"""
+    try:
+        log_file = 'llm_debug.log'
+        if os.path.exists(log_file):
+            open(log_file, 'w').close()
+            return jsonify({"success": True, "message": "Logs cleared"})
+        return jsonify({"success": True, "message": "No log file to clear"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/events')

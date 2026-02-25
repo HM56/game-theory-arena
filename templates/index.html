@@ -744,6 +744,7 @@ Goal: Maximize your total score over multiple rounds.</textarea>
                     <button onclick="pauseGame()" id="pauseBtn" style="display:none;">⏸ Pause</button>
                     <button class="danger" onclick="stopGame()" id="stopBtn">⏹ Stop</button>
                     <button class="secondary" onclick="resetGame()">↺ New Game</button>
+                    <button class="secondary" onclick="showDebugLogs()" title="View LLM debug logs">🔍 Debug</button>
                 </div>
             </div>
         </div>
@@ -794,6 +795,21 @@ Goal: Maximize your total score over multiple rounds.</textarea>
         </div>
     </div>
 
+    <!-- Debug Logs Modal -->
+    <div id="debugModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title">LLM Debug Logs</h2>
+                <button class="modal-close" onclick="closeDebugModal()">&times;</button>
+            </div>
+            <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+                <button class="secondary" onclick="refreshDebugLogs()">🔄 Refresh</button>
+                <button class="danger" onclick="clearDebugLogs()" style="margin-left: 8px;">🗑️ Clear Logs</button>
+            </div>
+            <div class="modal-body" id="debugLogsBody" style="font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.4; max-height: 600px; overflow-y: auto; background: #0a0a0a; padding: 16px; border-radius: 4px;">Loading logs...</div>
+        </div>
+    </div>
+
     <script>
         let eventSource = null;
         let agents = [];
@@ -814,12 +830,64 @@ Goal: Maximize your total score over multiple rounds.</textarea>
             document.getElementById('reasoningModal').classList.remove('show');
         }
 
+        function closeDebugModal() {
+            document.getElementById('debugModal').classList.remove('show');
+        }
+
+        async function showDebugLogs() {
+            document.getElementById('debugModal').classList.add('show');
+            await refreshDebugLogs();
+        }
+
+        async function refreshDebugLogs() {
+            const logsBody = document.getElementById('debugLogsBody');
+            logsBody.textContent = 'Loading...';
+
+            try {
+                const response = await fetch('/api/debug/logs');
+                const data = await response.json();
+
+                if (data.logs) {
+                    // Highlight errors and warnings
+                    let highlightedLogs = data.logs
+                        .replace(/(ERROR)/g, '<span style="color: #ff6b6b; font-weight: bold;">$1</span>')
+                        .replace(/(WARNING)/g, '<span style="color: #ffd93d; font-weight: bold;">$1</span>')
+                        .replace(/(INFO)/g, '<span style="color: #6bcb77;">$1</span>')
+                        .replace(/(\[.*?\])/g, '<span style="color: #4d96ff;">$1</span>');
+
+                    logsBody.innerHTML = highlightedLogs;
+                } else {
+                    logsBody.textContent = data.error || 'No logs available';
+                }
+            } catch (error) {
+                logsBody.textContent = `Error loading logs: ${error.message}`;
+            }
+        }
+
+        async function clearDebugLogs() {
+            if (!confirm('Clear all debug logs?')) return;
+
+            try {
+                await fetch('/api/debug/clear-logs', { method: 'POST' });
+                await refreshDebugLogs();
+            } catch (error) {
+                alert('Failed to clear logs: ' + error.message);
+            }
+        }
+
+        document.getElementById('debugModal').addEventListener('click', (e) => {
+            if (e.target.id === 'debugModal') closeDebugModal();
+        });
+
         document.getElementById('reasoningModal').addEventListener('click', (e) => {
             if (e.target.id === 'reasoningModal') closeModal();
         });
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
+            if (e.key === 'Escape') {
+                closeModal();
+                closeDebugModal();
+            }
         });
 
         // Default rules for each game type

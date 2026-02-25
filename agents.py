@@ -6,6 +6,7 @@ LLM-powered agents for game theory scenarios
 import asyncio
 import json
 import re
+import logging
 from typing import List
 from dataclasses import dataclass
 
@@ -14,6 +15,8 @@ from llm_providers import (
     LLMOrchestrator, LLMModel,
     GPT_OSS_120B, GPT_OSS_20B, LLAMA_3_1_8B, LLAMA_3_3_70B, QWEN_3_32B, KIMI_K2
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LLMAgent(BaseAgent):
@@ -141,6 +144,8 @@ your_action_value
 </action>"""
 
         try:
+            logger.info(f"[{self.agent_id}] Requesting action from {self.model.model_id}")
+
             response = await self.llm.get_completion(
                 prompt=prompt,
                 model=self.model.model_id,
@@ -148,9 +153,29 @@ your_action_value
                 temperature=self.temperature
             )
 
+            # Check for empty response
+            if not response or not response.strip():
+                logger.warning(f"[{self.agent_id}] EMPTY RESPONSE received from {self.model.model_id}")
+                logger.warning(f"[{self.agent_id}] System prompt length: {len(effective_system_prompt)}, User prompt length: {len(prompt)}")
+                # Return a fallback action
+                fallback = available_actions[0] if available_actions else "pass"
+                return AgentAction(
+                    agent_id=self.agent_id,
+                    action=fallback,
+                    reasoning="[MODEL RETURNED EMPTY RESPONSE - Using fallback]",
+                    raw_response="[EMPTY]"
+                )
+
+            logger.info(f"[{self.agent_id}] Received {len(response)} chars from {self.model.model_id}")
+
             # Extract reasoning and action from the response
             reasoning = self._extract_reasoning(response)
             action = self._extract_action_from_tags(response)
+
+            # Warn if action extraction failed
+            if not action:
+                logger.warning(f"[{self.agent_id}] Failed to extract action from response. Response preview: {response[:200]}")
+                action = available_actions[0] if available_actions else "pass"
 
             return AgentAction(
                 agent_id=self.agent_id,
@@ -160,6 +185,7 @@ your_action_value
             )
 
         except Exception as e:
+            logger.error(f"[{self.agent_id}] Exception in decide_action: {str(e)}", exc_info=True)
             # Fallback action
             fallback = available_actions[0] if available_actions else "pass"
             return AgentAction(
