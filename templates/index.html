@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Theory Arena</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000;
+            color: #fff;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #222;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        .setup-panel {
+            background: #0a0a0a;
+            border: 1px solid #222;
+            padding: 24px;
+            margin-bottom: 24px;
+            border-radius: 4px;
+        }
+
+        .section-title {
+            color: #fff;
+            border-bottom: 1px solid #222;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .section-title .badge {
+            font-size: 11px;
+            padding: 4px 8px;
+            background: #222;
+            border-radius: 3px;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #888;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        label .hint {
+            color: #444;
+            font-weight: 400;
+            text-transform: none;
+            margin-left: 8px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 14px;
+            background: #111;
+            border: 1px solid #333;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            transition: all 0.15s ease;
+            border-radius: 4px;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #fff;
+            background: #161616;
+        }
+
+        textarea {
+            min-height: 140px;
+            resize: vertical;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #222;
+            color: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.primary {
+            background: #fff;
+            color: #000;
+        }
+
+        button.secondary {
+            background: #222;
+            color: #fff;
+        }
+
+        button.danger {
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid #333;
+        }
+
+        button.danger:hover:not(:disabled) {
+            border-color: #fff;
+            background: #222;
+        }
+
+        button.icon-btn {
+            padding: 8px 12px;
+            font-size: 16px;
+        }
+
+        .agent-config {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .agent-card {
+            background: #111;
+            padding: 16px;
+            border: 1px solid #222;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .agent-card .remove-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: #444;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px 8px;
+            transition: color 0.15s ease;
+        }
+
+        .agent-card .remove-btn:hover {
+            color: #fff;
+        }
+
+        .game-area {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .game-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .agents-panel {
+            background: #0a0a0a;
+            border: 1px solid #222;
+            padding: 20px;
+            border-radius: 4px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .game-info-panel {
+            background: #0a0a0a;
+            border: 1px solid #222;
+            padding: 20px;
+            border-radius: 4px;
+        }
+
+        .analysis-content {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .analysis-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .analysis-item:last-child {
+            border-bottom: none;
+        }
+
+        .analysis-label {
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .analysis-value {
+            color: #fff;
+        }
+
+        .analysis-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .analysis-list li {
+            padding: 4px 0;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .analysis-list li::before {
+            content: "→ ";
+            color: #444;
+        }
+
+        .log-panel {
+            background: #0a0a0a;
+            border: 1px solid #222;
+            padding: 20px;
+            border-radius: 4px;
+            min-height: 700px;
+            max-height: 700px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .agent-status {
+            background: #111;
+            padding: 14px;
+            margin-bottom: 10px;
+            border-left: 2px solid #fff;
+            border-radius: 0 4px 4px 0;
+            transition: all 0.2s ease;
+        }
+
+        .agent-status:hover {
+            background: #161616;
+        }
+
+        .agent-status.thinking {
+            border-left-color: #666;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .agent-name {
+            font-weight: 600;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .agent-model {
+            font-size: 11px;
+            color: #555;
+            padding: 2px 6px;
+            background: #1a1a1a;
+            border-radius: 3px;
+        }
+
+        .agent-score {
+            color: #888;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        .agent-score .score-value {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .agent-action {
+            color: #fff;
+            margin-top: 8px;
+            font-size: 13px;
+            padding-top: 8px;
+            border-top: 1px solid #222;
+        }
+
+        .log-entry {
+            padding: 10px 0;
+            margin-bottom: 4px;
+            border-left: 2px solid #333;
+            font-size: 13px;
+            padding-left: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.5;
+        }
+
+        .log-entry .timestamp {
+            color: #555;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .log-entry .source {
+            color: #888;
+            font-weight: 500;
+        }
+
+        .log-entry.action {
+            border-left-color: #666;
+        }
+
+        .log-entry.action em {
+            color: #555;
+            font-style: normal;
+        }
+
+        .log-entry.result {
+            border-left-color: #fff;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 12px;
+            border-radius: 0 4px 4px 0;
+            margin: 8px 0;
+        }
+
+        .log-entry.error {
+            border-left-color: #fff;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 0;
+            border-bottom: 1px solid #222;
+            margin-bottom: 16px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.idle { background: #333; }
+        .status-indicator.ready { background: #fff; }
+        .status-indicator.running { background: #fff; animation: blink 1s infinite; }
+        .status-indicator.finished { background: #fff; }
+        .status-indicator.error { background: #fff; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .config-suggestions {
+            background: #111;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid #222;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .config-suggestions.show {
+            display: block;
+            animation: slideIn 0.2s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .suggestion-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .suggestion-value {
+            color: #fff;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.15s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #0a0a0a;
+            border: 1px solid #222;
+            padding: 32px;
+            max-width: 800px;
+            max-height: 85vh;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #222;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            margin: 0;
+            line-height: 1;
+            transition: color 0.15s ease;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            color: #bbb;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .clickable {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-decoration-color: #444;
+            transition: all 0.15s ease;
+        }
+
+        .clickable:hover {
+            color: #fff;
+            text-decoration-style: solid;
+            text-decoration-color: #666;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .game-area {
+                grid-template-columns: 1fr;
+            }
+
+            .agents-panel {
+                max-height: 400px;
+                position: relative;
+            }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #333;
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #444;
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Game Theory Arena</h1>
+            <p class="subtitle">LLM agents competing in strategic scenarios</p>
+        </header>
+
+        <!-- Setup Panel -->
+        <div class="setup-panel" id="setupPanel">
+            <h2 class="section-title">
+                Game Setup
+                <span class="badge">Step 1 of 2</span>
+            </h2>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Game Type</label>
+                    <select id="gameType" onchange="updateDefaultRules()">
+                        <option value="custom">Custom Game</option>
+                        <option value="prisoners_dilemma" selected>Prisoner's Dilemma</option>
+                        <option value="public_goods">Public Goods Game</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Max Rounds <span class="hint">Number of rounds to play</span></label>
+                    <input type="number" id="maxRounds" value="10" min="1" max="100">
+                </div>
+            </div>
+
+            <div class="form-group full-width">
+                <label>Game Rules <span class="hint">Describe the game, objectives, and scoring</span></label>
+                <textarea id="gameRules" placeholder="Enter your game rules here...">Prisoner's Dilemma:
+Two players simultaneously choose to COOPERATE or DEFECT.
+Payoffs:
+- Both cooperate: 3 points each
+- One cooperates, one defects: defector gets 5, cooperator gets 0
+- Both defect: 1 point each
+
+Goal: Maximize your total score over multiple rounds.</textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="secondary" onclick="analyzeRules()" id="analyzeBtn">
+                    <span id="analyzeBtnText">Analyze Rules</span>
+                </button>
+            </div>
+
+            <div id="configSuggestions" class="config-suggestions"></div>
+
+            <h3 class="section-title">
+                Agents
+                <span class="badge">Step 2 of 2</span>
+            </h3>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Number of Agents</label>
+                    <input type="number" id="numAgents" value="2" min="2" max="8" onchange="generateAgentConfig()">
+                </div>
+            </div>
+
+            <div id="agentConfig" class="agent-config"></div>
+
+            <div class="button-group" style="margin-top: 16px;">
+                <button class="secondary" onclick="addAgentField()">+ Add Agent Type</button>
+                <button class="primary" onclick="setupGame()" id="setupBtn">Setup Game →</button>
+            </div>
+        </div>
+
+        <!-- Game Controls -->
+        <div class="setup-panel" id="gameControls" style="display:none;">
+            <div class="controls-bar">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span class="status-text" id="gameStatus">Ready</span>
+                <div class="button-group" style="margin-left: auto;">
+                    <button onclick="startGame()" id="startBtn">▶ Start</button>
+                    <button onclick="pauseGame()" id="pauseBtn" style="display:none;">⏸ Pause</button>
+                    <button class="danger" onclick="stopGame()" id="stopBtn">⏹ Stop</button>
+                    <button class="secondary" onclick="resetGame()">↺ New Game</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Area -->
+        <div class="game-area" id="gameArea" style="display:none;">
+            <div class="game-sidebar">
+                <div class="agents-panel">
+                    <h3 class="section-title">
+                        Agents
+                        <span class="badge" id="roundBadge">Round 0/0</span>
+                    </h3>
+                    <div id="agentsList"></div>
+                </div>
+
+                <div class="game-info-panel" style="margin-top: 24px;">
+                    <h3 class="section-title">Game Analysis</h3>
+                    <div id="gameAnalysis" class="analysis-content">
+                        <div class="empty-state" style="padding: 20px;">
+                            <p style="color: #444;">Loading analysis...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="log-panel">
+                <h3 class="section-title">Game Log</h3>
+                <div class="log-container" id="gameLog">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p>Waiting for game to start...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="reasoningModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Agent Reasoning</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let agents = [];
+        let agentReasonings = {};
+        let currentRound = 0;
+        let maxRounds = 10;
+
+        function openModal(agentId, action, reasoning) {
+            document.getElementById('modalTitle').textContent = `${agentId} — ${action}`;
+            document.getElementById('modalBody').textContent = reasoning || 'No reasoning available.';
+            document.getElementById('reasoningModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('reasoningModal').classList.remove('show');
+        }
+
+        document.getElementById('reasoningModal').addEventListener('click', (e) => {
+            if (e.target.id === 'reasoningModal') closeModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Default rules for each game type
+        const defaultRules = {
+            'custom': `Enter your custom game rules here.
+
+Describe:
+- The objective
+- How players take actions
+- How scores are calculated
+- When the game ends`,
+
+            'prisoners_dilemma': `Prisoner's Dilemma:
+Two players simultaneously choose to COOPERATE or DEFECT.
+Payoffs:
+- Both cooperate: 3 points each
+- One cooperates, one defects: defector gets 5, cooperator gets 0
+- Both defect: 1 point each
+
+Goal: Maximize your total score over multiple rounds.`,
+
+            'public_goods': `Public Goods Game:
+Each player starts with 10 points per round.
+Choose how much to contribute (0-10) to a public pot.
+Total contributions are multiplied by 1.8x and split equally.
+
+Goal: Maximize your total score.`
+        };
+
+        function updateDefaultRules() {
+            const gameType = document.getElementById('gameType').value;
+            document.getElementById('gameRules').value = defaultRules[gameType] || defaultRules['custom'];
+        }
+
+        const models = [
+            { id: 'gpt-oss-120b', name: 'GPT-OSS 120B' },
+            { id: 'gpt-oss-20b', name: 'GPT-OSS 20B' },
+            { id: 'llama-3.3-70b', name: 'Llama 3.3 70B' },
+            { id: 'llama-3.1-8b', name: 'Llama 3.1 8B (Fast)' },
+            { id: 'qwen-3-32b', name: 'Qwen 3 32B' },
+            { id: 'kimi-k2', name: 'Kimi K2' },
+        ];
+
+        generateAgentConfig();
+
+        function generateAgentConfig() {
+            const container = document.getElementById('agentConfig');
+            container.innerHTML = '';
+
+            const numAgents = parseInt(document.getElementById('numAgents').value) || 2;
+
+            for (let i = 0; i < numAgents; i++) {
+                addAgentField(i);
+            }
+        }
+
+        function addAgentField(index = null) {
+            const container = document.getElementById('agentConfig');
+
+            if (index === null) {
+                index = container.children.length;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'agent-card';
+            div.innerHTML = `
+                <button class="remove-btn" onclick="this.parentElement.remove()" title="Remove agent">&times;</button>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label>Model</label>
+                    <select id="agentModel${index}">
+                        ${models.map(m => `<option value="${m.id}" ${m.id === 'gpt-oss-120b' ? 'selected' : ''}>${m.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <label>Count</label>
+                    <input type="number" id="agentCount${index}" value="1" min="1" max="4">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Personality <span class="hint">Optional</span></label>
+                    <input type="text" id="agentPersonality${index}" placeholder="e.g., aggressive, cooperative">
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        async function analyzeRules() {
+            const rules = document.getElementById('gameRules').value;
+            const btn = document.getElementById('analyzeBtn');
+            const btnText = document.getElementById('analyzeBtnText');
+
+            if (!rules.trim()) {
+                alert('Please enter game rules first');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.innerHTML = 'Analyzing... <span class="spinner"></span>';
+
+            try {
+                const response = await fetch('/api/analyze-rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rules })
+                });
+
+                const data = await response.json();
+
+                const suggestionsDiv = document.getElementById('configSuggestions');
+                suggestionsDiv.innerHTML = `
+                    <h4 style="margin-bottom: 12px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Analysis Results</h4>
+                    <div class="suggestion-item">
+                        <span class="suggestion-label">Game Type</span>
+                        <span class="suggestion-value">${data.game_type || 'Unknown'}</span>
+                    </div>
+                    <div class="suggestion-item">
+                        <span class="suggestion-label">Players</span>
+                        <span class="suggestion-value">${data.min_players || 2} - ${data.max_players || 8} (recommended: ${data.recommended_players || 2})</span>
+                    </div>
+                    <div class="suggestion-item">
+                        <span class="suggestion-label">Action Format</span>
+                        <span class="suggestion-value">${data.action_format || 'free text'}</span>
+                    </div>
+                    <div class="suggestion-item">
+                        <span class="suggestion-label">Typical Rounds</span>
+                        <span class="suggestion-value">${data.typical_rounds || 10}</span>
+                    </div>
+                    <div class="suggestion-item">
+                        <span class="suggestion-label">Complexity</span>
+                        <span class="suggestion-value">${data.complexity || 'medium'}</span>
+                    </div>
+                `;
+                suggestionsDiv.classList.add('show');
+
+                // Update suggested rounds
+                if (data.typical_rounds) {
+                    document.getElementById('maxRounds').value = data.typical_rounds;
+                }
+
+                // Update suggested player count
+                if (data.recommended_players) {
+                    document.getElementById('numAgents').value = Math.min(data.recommended_players, 8);
+                    generateAgentConfig();
+                }
+
+            } catch (error) {
+                console.error('Error analyzing rules:', error);
+                alert('Failed to analyze rules. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = '✨ Analyze Rules';
+            }
+        }
+
+        async function setupGame() {
+            const gameType = document.getElementById('gameType').value;
+            const rules = document.getElementById('gameRules').value;
+
+            const agentCards = document.querySelectorAll('.agent-card');
+            const agentsConfig = [];
+
+            agentCards.forEach((card, index) => {
+                const model = document.getElementById(`agentModel${index}`).value;
+                const count = parseInt(document.getElementById(`agentCount${index}`).value) || 1;
+                const personality = document.getElementById(`agentPersonality${index}`).value;
+
+                if (count > 0) {
+                    agentsConfig.push({ model, count, personality });
+                }
+            });
+
+            const maxRoundsVal = parseInt(document.getElementById('maxRounds').value) || 10;
+            maxRounds = maxRoundsVal;
+
+            const config = {
+                game_type: gameType,
+                rules,
+                agents: agentsConfig,
+                config: { maxRounds: maxRoundsVal }
+            };
+
+            try {
+                const response = await fetch('/api/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'ready') {
+                    document.getElementById('setupPanel').style.display = 'none';
+                    document.getElementById('gameControls').style.display = 'block';
+                    document.getElementById('gameArea').style.display = 'grid';
+
+                    updateStatus('ready');
+                    connectEvents();
+                    refreshState();
+                }
+
+            } catch (error) {
+                console.error('Error setting up game:', error);
+                alert('Failed to setup game. Please try again.');
+            }
+        }
+
+        async function startGame() {
+            try {
+                await fetch('/api/start', { method: 'POST' });
+                updateStatus('running');
+            } catch (error) {
+                console.error('Error starting game:', error);
+            }
+        }
+
+        async function pauseGame() {
+            try {
+                await fetch('/api/pause', { method: 'POST' });
+                updateStatus('paused');
+            } catch (error) {
+                console.error('Error pausing game:', error);
+            }
+        }
+
+        async function stopGame() {
+            try {
+                await fetch('/api/stop', { method: 'POST' });
+                updateStatus('stopped');
+            } catch (error) {
+                console.error('Error stopping game:', error);
+            }
+        }
+
+        function resetGame() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            document.getElementById('gameControls').style.display = 'none';
+            document.getElementById('gameArea').style.display = 'none';
+            document.getElementById('setupPanel').style.display = 'block';
+            document.getElementById('agentsList').innerHTML = '';
+            document.getElementById('gameLog').innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><p>Waiting for game to start...</p></div>';
+            document.getElementById('configSuggestions').classList.remove('show');
+
+            currentRound = 0;
+            updateRoundBadge();
+        }
+
+        function updateStatus(status) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('gameStatus');
+            const startBtn = document.getElementById('startBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+
+            indicator.className = `status-indicator ${status}`;
+
+            const statusMap = {
+                'idle': 'Idle',
+                'ready': 'Ready to start',
+                'running': 'Game in progress',
+                'paused': 'Paused',
+                'finished': 'Game finished',
+                'stopped': 'Stopped',
+                'error': 'Error'
+            };
+
+            statusText.textContent = statusMap[status] || status;
+
+            startBtn.style.display = status === 'running' ? 'none' : 'inline-block';
+            pauseBtn.style.display = status === 'running' ? 'inline-block' : 'none';
+        }
+
+        function updateRoundBadge() {
+            document.getElementById('roundBadge').textContent = `Round ${currentRound}/${maxRounds}`;
+        }
+
+        function connectEvents() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource('/api/events');
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleEvent(data);
+            };
+
+            eventSource.onerror = (error) => {
+                console.error('SSE error:', error);
+            };
+        }
+
+        function handleEvent(event) {
+            switch (event.type) {
+                case 'game_ready':
+                    displayAgents(event.data.agents);
+                    if (event.data.game) {
+                        displayGameAnalysis(event.data.game);
+                    }
+                    break;
+
+                case 'game_event':
+                    handleGameEvent(event.data);
+                    break;
+
+                case 'game_over':
+                    updateStatus('finished');
+
+                    if (event.data.is_tie) {
+                        const scores = Object.entries(event.data.final_scores)
+                            .map(([id, score]) => `${id}: ${score}`)
+                            .join(', ');
+                        addLogEntry('GAME OVER', `[TIE] ${event.data.winners.join(' & ')} (${scores})`, 'result');
+                    } else {
+                        addLogEntry('GAME OVER', `[WINNER] ${event.data.winner} wins with ${event.data.final_scores[event.data.winner]} points!`, 'result');
+                    }
+                    break;
+
+                case 'error':
+                    updateStatus('error');
+                    addLogEntry('ERROR', event.data.message, 'error');
+                    break;
+            }
+        }
+
+        function displayAgents(agentsData) {
+            const container = document.getElementById('agentsList');
+            container.innerHTML = '';
+
+            agentsData.forEach(agent => {
+                const div = document.createElement('div');
+                div.className = 'agent-status';
+                div.id = `agent-${agent.agent_id}`;
+                div.innerHTML = `
+                    <div class="agent-header">
+                        <div class="agent-name">${agent.agent_id}</div>
+                        <div class="agent-model">${agent.model_name}</div>
+                    </div>
+                    <div class="agent-score">Score: <span class="score-value">${agent.score}</span></div>
+                    <div class="agent-action" id="action-${agent.agent_id}">Waiting...</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function displayGameAnalysis(gameData) {
+            const container = document.getElementById('gameAnalysis');
+            if (!gameData) return;
+
+            const analysis = gameData.analysis || {};
+            const rules = gameData.rules || {};
+
+            let html = '';
+
+            if (analysis.game_type) {
+                html += `<div class="analysis-item">
+                    <div class="analysis-label">Game Type</div>
+                    <div class="analysis-value">${analysis.game_type}</div>
+                </div>`;
+            }
+
+            if (analysis.action_description) {
+                html += `<div class="analysis-item">
+                    <div class="analysis-label">Action Required</div>
+                    <div class="analysis-value">${analysis.action_description}</div>
+                </div>`;
+            }
+
+            if (analysis.strategy_hint) {
+                html += `<div class="analysis-item">
+                    <div class="analysis-label">Strategy Hint</div>
+                    <div class="analysis-value">${analysis.strategy_hint}</div>
+                </div>`;
+            }
+
+            if (analysis.key_mechanics && analysis.key_mechanics.length > 0) {
+                html += `<div class="analysis-item">
+                    <div class="analysis-label">Key Mechanics</div>
+                    <ul class="analysis-list">
+                        ${analysis.key_mechanics.map(m => `<li>${m}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            if (analysis.scoring_method) {
+                html += `<div class="analysis-item">
+                    <div class="analysis-label">Scoring</div>
+                    <div class="analysis-value" style="font-size: 12px;">${analysis.scoring_method}</div>
+                </div>`;
+            }
+
+            if (analysis.sample_round) {
+                html += `<div class="analysis-item">
+                    <div class="analysis-label">Sample Round</div>
+                    <div class="analysis-value" style="font-size: 11px; color: #666; font-style: italic;">${analysis.sample_round.substring(0, 200)}...</div>
+                </div>`;
+            }
+
+            container.innerHTML = html || '<div class="empty-state" style="padding: 20px;"><p style="color: #444;">No analysis available</p></div>';
+        }
+
+        function updateAgentAction(data) {
+            const actionDiv = document.getElementById(`action-${data.agent_id}`);
+            if (actionDiv) {
+                actionDiv.textContent = `Action: ${data.action}`;
+            }
+        }
+
+        function handleGameEvent(eventData) {
+            if (eventData.event_type === 'action') {
+                // Handle action events - show the extracted action
+                const reasoning = eventData.data.reasoning || '';
+                const rawResponse = eventData.data.raw_response || '';
+                const action = eventData.data.action;
+                const agentId = eventData.agent_id;
+
+                // Store full reasoning for modal - use unique ID based on timestamp and random
+                const reasoningId = `reasoning-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                window[reasoningId] = rawResponse || reasoning;
+
+                let reasoningPreview = reasoning || rawResponse;
+                if (reasoningPreview && reasoningPreview.length > 120) {
+                    reasoningPreview = reasoningPreview.substring(0, 120) + '...';
+                }
+
+                // Escape HTML special characters to prevent XSS and broken HTML
+                const escapeHtml = (str) => {
+                    const div = document.createElement('div');
+                    div.textContent = str;
+                    return div.innerHTML;
+                };
+
+                const escapedAgentId = escapeHtml(agentId);
+                const escapedAction = escapeHtml(action);
+                const escapedReasoning = escapeHtml(reasoningPreview || '');
+
+                // Use addEventListener approach - create element directly instead of innerHTML string
+                const actionMsgFragment = document.createDocumentFragment();
+
+                const actionStrong = document.createElement('strong');
+                actionStrong.textContent = action;
+                actionMsgFragment.appendChild(actionStrong);
+
+                if (reasoningPreview) {
+                    const clickableEm = document.createElement('em');
+                    clickableEm.className = 'clickable';
+                    clickableEm.textContent = ` — ${reasoningPreview}`;
+                    clickableEm.style.fontStyle = 'italic';
+                    clickableEm.style.cursor = 'pointer';
+                    clickableEm.style.textDecoration = 'underline';
+                    clickableEm.style.textDecorationStyle = 'dotted';
+                    clickableEm.style.textDecorationColor = '#444';
+
+                    // Store data in a closure
+                    clickableEm.addEventListener('click', () => {
+                        openModal(agentId, action, window[reasoningId] || '');
+                    });
+
+                    actionMsgFragment.appendChild(clickableEm);
+                }
+
+                addLogEntryWithElement(agentId, actionMsgFragment, 'action');
+                updateAgentAction({ agent_id: agentId, action: action });
+            }
+            else if (eventData.event_type === 'result') {
+                addLogEntry('RESULT', eventData.message, 'result');
+
+                // Update scores if available
+                if (eventData.data && eventData.data.scores) {
+                    Object.entries(eventData.data.scores).forEach(([agentId, score]) => {
+                        const scoreDiv = document.querySelector(`#agent-${agentId} .score-value`);
+                        if (scoreDiv) {
+                            scoreDiv.textContent = score;
+                        }
+                    });
+
+                    // Update round counter
+                    if (eventData.data.scores && Object.keys(eventData.data.scores).length > 0) {
+                        currentRound++;
+                        updateRoundBadge();
+                    }
+                }
+            }
+        }
+
+        function addLogEntry(source, message, type = '') {
+            const container = document.getElementById('gameLog');
+
+            // Remove empty state if exists
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            div.innerHTML = `<span class="timestamp">[${time}]</span><span class="source">${source}:</span> ${message}`;
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addLogEntryWithElement(source, messageElement, type = '') {
+            const container = document.getElementById('gameLog');
+
+            // Remove empty state if exists
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            const timeSpan = document.createElement('span');
+            timeSpan.className = 'timestamp';
+            timeSpan.textContent = `[${time}]`;
+
+            const sourceSpan = document.createElement('span');
+            sourceSpan.className = 'source';
+            sourceSpan.textContent = `${source}:`;
+
+            div.appendChild(timeSpan);
+            div.appendChild(sourceSpan);
+            div.appendChild(document.createTextNode(' '));
+            div.appendChild(messageElement);
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function refreshState() {
+            try {
+                const response = await fetch('/api/state');
+                const data = await response.json();
+
+                if (data.agents) {
+                    displayAgents(data.agents);
+                }
+
+                if (data.game) {
+                    displayGameAnalysis(data.game);
+                }
+
+                updateStatus(data.status);
+
+            } catch (error) {
+                console.error('Error fetching state:', error);
+            }
+        }
+    </script>
+</body>
+</html>
