@@ -163,10 +163,11 @@ def get_state():
     """Get current game state"""
     global game_state
 
+    game = game_state.get("game")
     return jsonify({
-        "status": game_state["status"],
+        "status": game_state.get("status", "idle"),
         "agents": [a.to_dict() for a in game_state.get("agents", [])],
-        "game": game_state.get("game").to_dict() if game_state.get("game") else None,
+        "game": game.to_dict() if game else None,
         "events": [e.to_dict() for e in game_state.get("events", [])]
     })
 

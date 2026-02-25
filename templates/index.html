@@ -1235,7 +1235,7 @@ Goal: Maximize your total score.`
                 const agentId = eventData.agent_id;
 
                 // Store full reasoning for modal - use unique ID based on timestamp and random
-                const reasoningId = `reasoning-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const reasoningId = `reasoning-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
                 window[reasoningId] = rawResponse || reasoning;
 
                 let reasoningPreview = reasoning || rawResponse;

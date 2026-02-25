@@ -8,6 +8,10 @@ import asyncio
 from groq import Groq
 from typing import List, Optional
 from dataclasses import dataclass
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 @dataclass
