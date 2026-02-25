@@ -798,8 +798,11 @@ Goal: Maximize your total score over multiple rounds.</textarea>
         let eventSource = null;
         let agents = [];
         let agentReasonings = {};
-        let currentRound = 0;
-        let maxRounds = 10;
+        let gameState = {
+            round_number: 0,
+            max_rounds: 10,
+            scores: {}
+        };
 
         function openModal(agentId, action, reasoning) {
             document.getElementById('modalTitle').textContent = `${agentId} — ${action}`;
@@ -988,7 +991,7 @@ Goal: Maximize your total score.`
             });
 
             const maxRoundsVal = parseInt(document.getElementById('maxRounds').value) || 10;
-            maxRounds = maxRoundsVal;
+            gameState.max_rounds = maxRoundsVal;
 
             const config = {
                 game_type: gameType,
@@ -1061,7 +1064,12 @@ Goal: Maximize your total score.`
             document.getElementById('gameLog').innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><p>Waiting for game to start...</p></div>';
             document.getElementById('configSuggestions').classList.remove('show');
 
-            currentRound = 0;
+            // Reset game state
+            gameState = {
+                round_number: 0,
+                max_rounds: 10,
+                scores: {}
+            };
             updateRoundBadge();
         }
 
@@ -1090,7 +1098,10 @@ Goal: Maximize your total score.`
         }
 
         function updateRoundBadge() {
-            document.getElementById('roundBadge').textContent = `Round ${currentRound}/${maxRounds}`;
+            // Use the actual game state from backend
+            const round = gameState.round_number !== undefined ? gameState.round_number : 0;
+            const max = gameState.max_rounds !== undefined ? gameState.max_rounds : 10;
+            document.getElementById('roundBadge').textContent = `Round ${round}/${max}`;
         }
 
         function connectEvents() {
@@ -1116,6 +1127,14 @@ Goal: Maximize your total score.`
                     displayAgents(event.data.agents);
                     if (event.data.game) {
                         displayGameAnalysis(event.data.game);
+                        // Initialize round info from game state
+                        if (event.data.game.round_number !== undefined) {
+                            gameState.round_number = event.data.game.round_number;
+                        }
+                        if (event.data.game.max_rounds !== undefined) {
+                            gameState.max_rounds = event.data.game.max_rounds;
+                        }
+                        updateRoundBadge();
                     }
                     break;
 
@@ -1226,7 +1245,42 @@ Goal: Maximize your total score.`
             }
         }
 
+        // Fuzzy matching for agent IDs - handles cases where backend IDs don't exactly match frontend IDs
+        function findAgentElement(agentId) {
+            // Try exact match first
+            let element = document.getElementById(`agent-${agentId}`);
+            if (element) return element;
+
+            // Try partial match - sometimes IDs have prefixes/suffixes
+            const allAgentElements = document.querySelectorAll('[id^="agent-"]');
+            for (const el of allAgentElements) {
+                const elId = el.id.replace('agent-', '');
+                // Check if either ID contains the other (handles "llama-3.3-70b-1" vs "llama-3.3-70b")
+                if (elId.includes(agentId) || agentId.includes(elId)) {
+                    return el;
+                }
+            }
+
+            return null;
+        }
+
+        function findScoreElement(agentId) {
+            const agentElement = findAgentElement(agentId);
+            if (agentElement) {
+                return agentElement.querySelector('.score-value');
+            }
+            return null;
+        }
+
         function handleGameEvent(eventData) {
+            // Update game state from event data
+            if (eventData.round_number !== undefined) {
+                gameState.round_number = eventData.round_number;
+            }
+            if (eventData.max_rounds !== undefined) {
+                gameState.max_rounds = eventData.max_rounds;
+            }
+
             if (eventData.event_type === 'action') {
                 // Handle action events - show the extracted action
                 const reasoning = eventData.data.reasoning || '';
@@ -1285,20 +1339,19 @@ Goal: Maximize your total score.`
             else if (eventData.event_type === 'result') {
                 addLogEntry('RESULT', eventData.message, 'result');
 
-                // Update scores if available
+                // Update scores if available - use fuzzy matching
                 if (eventData.data && eventData.data.scores) {
+                    gameState.scores = eventData.data.scores;
+
                     Object.entries(eventData.data.scores).forEach(([agentId, score]) => {
-                        const scoreDiv = document.querySelector(`#agent-${agentId} .score-value`);
+                        const scoreDiv = findScoreElement(agentId);
                         if (scoreDiv) {
                             scoreDiv.textContent = score;
                         }
                     });
 
-                    // Update round counter
-                    if (eventData.data.scores && Object.keys(eventData.data.scores).length > 0) {
-                        currentRound++;
-                        updateRoundBadge();
-                    }
+                    // Update round counter based on backend round_number
+                    updateRoundBadge();
                 }
             }
         }

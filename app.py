@@ -231,9 +231,14 @@ def run_game():
             game_state["events"].extend(events)
 
             for event in events:
+                # Include round info in event data
+                event_dict = event.to_dict()
+                event_dict["round_number"] = game.round_number
+                event_dict["max_rounds"] = game.max_rounds if hasattr(game, 'max_rounds') else 10
+
                 notify_clients({
                     "type": "game_event",
-                    "data": event.to_dict()
+                    "data": event_dict
                 })
 
             # Check game over

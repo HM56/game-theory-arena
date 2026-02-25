@@ -172,6 +172,12 @@ cooperate or defect
     def get_scores(self) -> Dict[str, float]:
         return self.scores.copy()
 
+    def to_dict(self):
+        """Include max_rounds in serialization"""
+        base_dict = super().to_dict()
+        base_dict["max_rounds"] = self.max_rounds
+        return base_dict
+
 
 class PublicGoodsGame(BaseGame):
     """
@@ -327,6 +333,12 @@ a number from 0 to {self.endowment}
 
     def get_scores(self) -> Dict[str, float]:
         return self.scores.copy()
+
+    def to_dict(self):
+        """Include max_rounds in serialization"""
+        base_dict = super().to_dict()
+        base_dict["max_rounds"] = self.max_rounds
+        return base_dict
 
 
 class CustomGame(BaseGame):
@@ -904,4 +916,5 @@ Give me JSON with score changes only:
         base_dict = super().to_dict()
         base_dict["analysis"] = self.state.get("analysis", {})
         base_dict["action_description"] = self.action_description
+        base_dict["max_rounds"] = self.max_rounds
         return base_dict
