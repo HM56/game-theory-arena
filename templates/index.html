@@ -685,6 +685,9 @@
                         <option value="custom">Custom Game</option>
                         <option value="prisoners_dilemma" selected>Prisoner's Dilemma</option>
                         <option value="public_goods">Public Goods Game</option>
+                        <option value="rock_paper_scissors">Rock Paper Scissors</option>
+                        <option value="battle_of_the_sexes">Battle of the Sexes</option>
+                        <option value="chicken">Chicken Game</option>
                     </select>
                 </div>
 
@@ -914,7 +917,41 @@ Each player starts with 10 points per round.
 Choose how much to contribute (0-10) to a public pot.
 Total contributions are multiplied by 1.8x and split equally.
 
-Goal: Maximize your total score.`
+Goal: Maximize your total score.`,
+
+            'rock_paper_scissors': `Rock Paper Scissors:
+Players simultaneously choose rock, paper, or scissors.
+- Rock beats scissors
+- Scissors beats paper
+- Paper beats rock
+
+Scoring:
+- Win: +2 points
+- Draw: +0 points
+- Loss: +0 points
+
+Goal: Maximize your total score over multiple rounds.`,
+
+            'battle_of_the_sexes': `Battle of the Sexes:
+Two players must coordinate on BALLET or FOOTBALL.
+
+Payoffs:
+- Both Ballet: Player 1 gets 2, Player 2 gets 1
+- Both Football: Player 1 gets 1, Player 2 gets 2
+- Miscoordination (different choices): Both get 0
+
+Goal: Maximize your total score through coordination.`,
+
+            'chicken': `Chicken Game:
+Two players drive toward each other. Each chooses: SWERVE or STRAIGHT.
+
+Payoffs:
+- Both Swerve: +1 each (safe but no winner)
+- You Swerve, Opponent Straight: Opponent gets +5 (wins), you get 0 (chicken)
+- You Straight, Opponent Swerves: You get +5 (winner), opponent gets 0 (chicken)
+- Both Straight: -10 each (CRASH - worst outcome)
+
+Goal: Maximize your total score over multiple rounds.`
         };
 
         function updateDefaultRules() {

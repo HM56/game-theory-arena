@@ -918,3 +918,514 @@ Give me JSON with score changes only:
         base_dict["action_description"] = self.action_description
         base_dict["max_rounds"] = self.max_rounds
         return base_dict
+
+
+class RockPaperScissors(BaseGame):
+    """
+    Rock Paper Scissors - Classic hand game
+    Rock beats scissors, scissors beats paper, paper beats rock
+    """
+
+    def __init__(self, rules: str = ""):
+        super().__init__(rules or self._default_rules())
+        self.max_rounds = 10
+        self.scores = {}
+
+        # Win/lose/draw matrix
+        self.beats = {"rock": "scissors", "scissors": "paper", "paper": "rock"}
+
+    def _default_rules(self):
+        return """Rock Paper Scissors:
+Players simultaneously choose rock, paper, or scissors.
+- Rock beats scissors
+- Scissors beats paper
+- Paper beats rock
+
+Scoring:
+- Win: +2 points
+- Draw: +0 points
+- Loss: +0 points
+
+Goal: Maximize your total score over multiple rounds."""
+
+    def setup(self, agents: List):
+        if len(agents) < 2:
+            raise ValueError("Rock Paper Scissors requires at least 2 players")
+        self.agents = agents
+        self.scores = {agent.agent_id: 0 for agent in agents}
+        self.state = {"rounds_played": 0}
+
+    def get_state_description(self, agent_id: str = None) -> str:
+        current_round = self.round_number + 1
+        is_final = current_round == self.max_rounds
+
+        desc = f"{'='*40}\n"
+        desc += f"ROCK PAPER SCISSORS - Round {current_round}/{self.max_rounds}{' [FINAL]' if is_final else ''}\n"
+        desc += f"{'='*40}\n\n"
+
+        desc += f"YOUR SCORE: {self.scores.get(agent_id, 0)} points\n"
+
+        # Show other players' scores
+        for other_id in self.scores:
+            if other_id != agent_id:
+                opp_score = self.scores[other_id]
+                desc += f"OPPONENT ({other_id}): {opp_score} points\n"
+
+        if self.round_number > 0:
+            desc += "\nRECENT HISTORY:\n"
+            for event in self.history[-6:]:
+                if event.message:
+                    desc += f"  {event.message}\n"
+
+        desc += "\nCHOICES: Rock • Paper • Scissors\n"
+        desc += "Rock beats Scissors, Scissors beats Paper, Paper beats Rock\n"
+
+        if is_final:
+            desc += "\n⚠️  FINAL ROUND!\n"
+
+        return desc
+
+    def get_system_prompt(self) -> str:
+        return """You are a rational agent playing Rock Paper Scissors.
+
+OBJECTIVE: Maximize your total score over multiple rounds.
+
+GAME MECHANICS:
+- Each round, simultaneously choose: ROCK, PAPER, or SCISSORS
+- Rock beats Scissors (+2 for winner)
+- Scissors beats Paper (+2 for winner)
+- Paper beats Rock (+2 for winner)
+- Same choice = Draw (0 points each)
+
+STRATEGIC CONSIDERATIONS:
+- Look for patterns in opponent's choices
+- Consider randomness to avoid predictability
+- Counter common strategies (like always playing rock)
+- Mixed strategies can be optimal
+
+OUTPUT FORMAT:
+<reasoning>
+Analyze opponent patterns and choose your move
+</reasoning>
+<action>
+rock or paper or scissors
+</action>"""
+
+    def validate_action(self, action: str) -> bool:
+        valid = {"rock", "paper", "scissors", "r", "p", "s"}
+        return action.lower().strip() in valid
+
+    def process_actions(self, actions: List[AgentAction]) -> List[GameEvent]:
+        events = []
+        timestamp = time.time()
+
+        # Normalize actions
+        normalized = {}
+        for action in actions:
+            act = action.action.lower().strip()
+            if act in ["r", "rock"]:
+                normalized[action.agent_id] = "rock"
+            elif act in ["p", "paper"]:
+                normalized[action.agent_id] = "paper"
+            elif act in ["s", "scissors"]:
+                normalized[action.agent_id] = "scissors"
+
+        # Generate events for each action
+        for agent_id, choice in normalized.items():
+            events.append(GameEvent(
+                event_type="action",
+                timestamp=timestamp,
+                agent_id=agent_id,
+                message=f"{agent_id} chose {choice}",
+                data={"action": choice}
+            ))
+
+        # Calculate winners (pairwise comparison)
+        agent_ids = list(normalized.keys())
+        score_changes = {aid: 0 for aid in agent_ids}
+
+        for i, id1 in enumerate(agent_ids):
+            for j, id2 in enumerate(agent_ids):
+                if i >= j:
+                    continue  # Skip self and duplicate pairs
+
+                choice1, choice2 = normalized[id1], normalized[id2]
+
+                if choice1 == choice2:
+                    # Draw - no points
+                    pass
+                elif self.beats[choice1] == choice2:
+                    # id1 wins
+                    score_changes[id1] += 2
+                elif self.beats[choice2] == choice1:
+                    # id2 wins
+                    score_changes[id2] += 2
+
+        # Apply score changes
+        for aid, change in score_changes.items():
+            self.scores[aid] += change
+
+        # Build result message
+        results = []
+        for aid, change in score_changes.items():
+            if change > 0:
+                results.append(f"{aid} won {change} points")
+            elif change == 0:
+                results.append(f"{aid} drew")
+
+        events.append(GameEvent(
+            event_type="result",
+            timestamp=timestamp,
+            message=f"Results: {', '.join(results)}",
+            data={"scores": self.scores.copy()}
+        ))
+
+        self.history.extend(events)
+        self.round_number += 1
+
+        return events
+
+    def is_game_over(self) -> bool:
+        return self.round_number >= self.max_rounds
+
+    def get_scores(self) -> Dict[str, float]:
+        return self.scores.copy()
+
+    def to_dict(self):
+        """Include max_rounds in serialization"""
+        base_dict = super().to_dict()
+        base_dict["max_rounds"] = self.max_rounds
+        return base_dict
+
+
+class BattleOfTheSexes(BaseGame):
+    """
+    Battle of the Sexes - Coordination game
+    Two players prefer different coordinated outcomes
+    """
+
+    def __init__(self, rules: str = ""):
+        super().__init__(rules or self._default_rules())
+        self.max_rounds = 10
+        self.scores = {}
+
+    def _default_rules(self):
+        return """Battle of the Sexes:
+Two players must coordinate on one of two options: BALLET or FOOTBALL.
+
+Payoffs:
+- Both choose Ballet: Player 1 gets 2, Player 2 gets 1
+- Both choose Football: Player 1 gets 1, Player 2 gets 2
+- Miscoordination (different choices): Both get 0
+
+Goal: Maximize your total score through coordination."""
+
+    def setup(self, agents: List):
+        if len(agents) != 2:
+            raise ValueError("Battle of the Sexes requires exactly 2 players")
+        self.agents = agents
+        self.scores = {agent.agent_id: 0 for agent in agents}
+        self.state = {"rounds_played": 0}
+
+    def get_state_description(self, agent_id: str = None) -> str:
+        current_round = self.round_number + 1
+        is_final = current_round == self.max_rounds
+
+        desc = f"{'='*40}\n"
+        desc += f"BATTLE OF THE SEXES - Round {current_round}/{self.max_rounds}{' [FINAL]' if is_final else ''}\n"
+        desc += f"{'='*40}\n\n"
+
+        desc += f"YOUR SCORE: {self.scores.get(agent_id, 0)} points\n"
+
+        # Show opponent's score
+        for other_id in self.scores:
+            if other_id != agent_id:
+                desc += f"OPPONENT ({other_id}): {self.scores[other_id]} points\n"
+
+        if self.round_number > 0:
+            desc += "\nRECENT HISTORY:\n"
+            for event in self.history[-4:]:
+                if event.message:
+                    desc += f"  {event.message}\n"
+
+        # Payoff reminder
+        desc += "\nPAYOFFS (You, Opponent):\n"
+        desc += "  Both Ballet: You get 2, Opponent gets 1\n"
+        desc += "  Both Football: You get 1, Opponent gets 2\n"
+        desc += "  Different choices: Both get 0\n"
+
+        if is_final:
+            desc += "\n⚠️  FINAL ROUND - Coordinate wisely!\n"
+
+        return desc
+
+    def get_system_prompt(self) -> str:
+        return """You are a rational agent playing the Battle of the Sexes.
+
+OBJECTIVE: Maximize your total score over multiple rounds.
+
+GAME MECHANICS:
+- You and your opponent simultaneously choose: BALLET or FOOTBALL
+- You prefer Ballet (you get 2 points, opponent gets 1)
+- Opponent prefers Football (you get 1 point, opponent gets 2)
+- But coordination is key - miscoordination = 0 points for both
+
+STRATEGIC CONSIDERATIONS:
+- This is a coordination game with conflicting preferences
+- Consider building trust through repeated patterns
+- Sometimes conceding can lead to better long-term outcomes
+- Look for patterns in opponent's behavior
+
+OUTPUT FORMAT:
+<reasoning>
+Consider your preference vs coordination value
+</reasoning>
+<action>
+ballet or football
+</action>"""
+
+    def validate_action(self, action: str) -> bool:
+        valid = {"ballet", "football", "b", "f", "ball", "foot"}
+        return action.lower().strip() in valid
+
+    def process_actions(self, actions: List[AgentAction]) -> List[GameEvent]:
+        events = []
+        timestamp = time.time()
+
+        # Normalize actions
+        normalized = {}
+        for action in actions:
+            act = action.action.lower().strip()
+            if act in ["b", "ballet", "ball"]:
+                normalized[action.agent_id] = "ballet"
+            else:
+                normalized[action.agent_id] = "football"
+
+        agent_ids = list(normalized.keys())
+        action_a, action_b = normalized[agent_ids[0]], normalized[agent_ids[1]]
+
+        # Payoff matrix
+        if action_a == action_b == "ballet":
+            scores = (2, 1)  # Player 1 prefers ballet
+        elif action_a == action_b == "football":
+            scores = (1, 2)  # Player 2 prefers football
+        else:
+            scores = (0, 0)  # Miscoordination
+
+        self.scores[agent_ids[0]] += scores[0]
+        self.scores[agent_ids[1]] += scores[1]
+
+        # Create events
+        events.append(GameEvent(
+            event_type="action",
+            timestamp=timestamp,
+            agent_id=agent_ids[0],
+            message=f"{agent_ids[0]} chose {action_a}",
+            data={"action": action_a}
+        ))
+
+        events.append(GameEvent(
+            event_type="action",
+            timestamp=timestamp,
+            agent_id=agent_ids[1],
+            message=f"{agent_ids[1]} chose {action_b}",
+            data={"action": action_b}
+        ))
+
+        result_desc = "Both chose Ballet" if action_a == action_b == "ballet" else \
+                      "Both chose Football" if action_a == action_b == "football" else \
+                      "Miscoordination - no points"
+
+        events.append(GameEvent(
+            event_type="result",
+            timestamp=timestamp,
+            message=f"{result_desc}. Results: {agent_ids[0]} +{scores[0]}, {agent_ids[1]} +{scores[1]}",
+            data={"scores": self.scores.copy()}
+        ))
+
+        self.history.extend(events)
+        self.round_number += 1
+
+        return events
+
+    def is_game_over(self) -> bool:
+        return self.round_number >= self.max_rounds
+
+    def get_scores(self) -> Dict[str, float]:
+        return self.scores.copy()
+
+    def to_dict(self):
+        """Include max_rounds in serialization"""
+        base_dict = super().to_dict()
+        base_dict["max_rounds"] = self.max_rounds
+        return base_dict
+
+
+class ChickenGame(BaseGame):
+    """
+    Chicken Game - Game of Brinkmanship
+    Two players drive toward each other, must decide to SWERVE or STRAIGHT
+    """
+
+    def __init__(self, rules: str = ""):
+        super().__init__(rules or self._default_rules())
+        self.max_rounds = 10
+        self.scores = {}
+
+    def _default_rules(self):
+        return """Chicken Game:
+Two players drive toward each other. Each must choose: SWERVE or STRAIGHT.
+
+Payoffs:
+- Both Swerve: +1 each (safe but no winner)
+- You Swerve, Opponent Straight: Opponent gets +5 (wins), you get 0 (chicken)
+- You Straight, Opponent Swerves: You get +5 (winner), opponent gets 0 (chicken)
+- Both Straight: -10 each (CRASH - worst outcome for both)
+
+Goal: Maximize your total score over multiple rounds."""
+
+    def setup(self, agents: List):
+        if len(agents) != 2:
+            raise ValueError("Chicken Game requires exactly 2 players")
+        self.agents = agents
+        self.scores = {agent.agent_id: 0 for agent in agents}
+        self.state = {"rounds_played": 0}
+
+    def get_state_description(self, agent_id: str = None) -> str:
+        current_round = self.round_number + 1
+        is_final = current_round == self.max_rounds
+
+        desc = f"{'='*40}\n"
+        desc += f"CHICKEN GAME - Round {current_round}/{self.max_rounds}{' [FINAL]' if is_final else ''}\n"
+        desc += f"{'='*40}\n\n"
+
+        desc += f"YOUR SCORE: {self.scores.get(agent_id, 0)} points\n"
+
+        # Show opponent's score
+        for other_id in self.scores:
+            if other_id != agent_id:
+                opp_score = self.scores[other_id]
+                desc += f"OPPONENT ({other_id}): {opp_score} points\n"
+
+        if self.round_number > 0:
+            desc += "\nRECENT HISTORY:\n"
+            for event in self.history[-4:]:
+                if event.message:
+                    desc += f"  {event.message}\n"
+
+        # Payoff reminder
+        desc += "\nPAYOFFS (You, Opponent):\n"
+        desc += "  Both Swerve: +1, +1 (safe)\n"
+        desc += "  You Swerve, Opponent Straight: 0, +5 (opponent wins)\n"
+        desc += "  You Straight, Opponent Swerves: +5, 0 (you win)\n"
+        desc += "  Both Straight: -10, -10 (CRASH!)\n"
+
+        if is_final:
+            desc += "\n⚠️  FINAL ROUND - Avoid the crash!\n"
+
+        return desc
+
+    def get_system_prompt(self) -> str:
+        return """You are a rational agent playing the Chicken Game.
+
+OBJECTIVE: Maximize your total score over multiple rounds.
+
+GAME MECHANICS:
+- Each round, simultaneously choose: SWERVE or STRAIGHT
+- Both Swerve: +1 each (safe draw)
+- You Swerve, Opponent Straight: You get 0 (chicken), opponent gets +5
+- You Straight, Opponent Swerves: You get +5 (winner), opponent gets 0
+- Both Straight: -10 each (CRASH - catastrophic)
+
+STRATEGIC CONSIDERATIONS:
+- This is a high-stakes game of brinkmanship
+- Straight dominates Swerve (IF opponent swerves)
+- But both Straight leads to disaster (-10 each)
+- Consider opponent's risk tolerance and past behavior
+- Reputation matters - being known as "tough" has value
+
+OUTPUT FORMAT:
+<reasoning>
+Weigh risks vs rewards, consider opponent's likely move
+</reasoning>
+<action>
+swerve or straight
+</action>"""
+
+    def validate_action(self, action: str) -> bool:
+        valid = {"swerve", "straight", "s", "sw", "st", "str"}
+        return action.lower().strip() in valid
+
+    def process_actions(self, actions: List[AgentAction]) -> List[GameEvent]:
+        events = []
+        timestamp = time.time()
+
+        # Normalize actions
+        normalized = {}
+        for action in actions:
+            act = action.action.lower().strip()
+            if act in ["s", "sw", "swerve"]:
+                normalized[action.agent_id] = "swerve"
+            else:
+                normalized[action.agent_id] = "straight"
+
+        agent_ids = list(normalized.keys())
+        action_a, action_b = normalized[agent_ids[0]], normalized[agent_ids[1]]
+
+        # Payoff matrix for Chicken
+        if action_a == "swerve" and action_b == "swerve":
+            scores = (1, 1)
+        elif action_a == "swerve" and action_b == "straight":
+            scores = (0, 5)  # A is chicken
+        elif action_a == "straight" and action_b == "swerve":
+            scores = (5, 0)  # B is chicken
+        else:  # both straight - CRASH
+            scores = (-10, -10)
+
+        self.scores[agent_ids[0]] += scores[0]
+        self.scores[agent_ids[1]] += scores[1]
+
+        # Create events
+        events.append(GameEvent(
+            event_type="action",
+            timestamp=timestamp,
+            agent_id=agent_ids[0],
+            message=f"{agent_ids[0]} chose {action_a}",
+            data={"action": action_a}
+        ))
+
+        events.append(GameEvent(
+            event_type="action",
+            timestamp=timestamp,
+            agent_id=agent_ids[1],
+            message=f"{agent_ids[1]} chose {action_b}",
+            data={"action": action_b}
+        ))
+
+        result_desc = "Both Swerved" if action_a == action_b == "swerve" else \
+                      "CRASH! Both went straight" if action_a == action_b == "straight" else \
+                      f"{agent_ids[0]} Swerved, {agent_ids[1]} went straight"
+
+        events.append(GameEvent(
+            event_type="result",
+            timestamp=timestamp,
+            message=f"{result_desc}. Results: {agent_ids[0]} {scores[0]:+,}, {agent_ids[1]} {scores[1]:+,}",
+            data={"scores": self.scores.copy()}
+        ))
+
+        self.history.extend(events)
+        self.round_number += 1
+
+        return events
+
+    def is_game_over(self) -> bool:
+        return self.round_number >= self.max_rounds
+
+    def get_scores(self) -> Dict[str, float]:
+        return self.scores.copy()
+
+    def to_dict(self):
+        """Include max_rounds in serialization"""
+        base_dict = super().to_dict()
+        base_dict["max_rounds"] = self.max_rounds
+        return base_dict

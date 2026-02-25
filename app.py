@@ -103,9 +103,26 @@ def setup_game():
         llm = LLMOrchestrator()
         agent_factory = AgentFactory(llm)
 
-        # ALL games use CustomGame now for maximum flexibility
-        game = CustomGame(rules, llm)
-        asyncio.run(game.analyze_rules())
+        # Create game based on type
+        if game_type == 'prisoners_dilemma':
+            from games import PrisonersDilemma
+            game = PrisonersDilemma(rules)
+        elif game_type == 'public_goods':
+            from games import PublicGoodsGame
+            game = PublicGoodsGame(rules)
+        elif game_type == 'rock_paper_scissors':
+            from games import RockPaperScissors
+            game = RockPaperScissors(rules)
+        elif game_type == 'battle_of_the_sexes':
+            from games import BattleOfTheSexes
+            game = BattleOfTheSexes(rules)
+        elif game_type == 'chicken':
+            from games import ChickenGame
+            game = ChickenGame(rules)
+        else:
+            # Custom game uses LLM analysis
+            game = CustomGame(rules, llm)
+            asyncio.run(game.analyze_rules())
 
         # Create agents
         agents = agent_factory.create_multiple_agents(agent_config)
